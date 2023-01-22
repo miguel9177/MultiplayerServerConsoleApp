@@ -94,7 +94,7 @@ namespace Server
                 EndPoint newRemote = new IPEndPoint(IPAddress.Any, 0);
                 //we make sure the variable data is the same size
                 data = new byte[1024];
-                //we receive the message from the player
+                //we receive the message from any player
                 recv = newsock.ReceiveFrom(data, ref newRemote); //recv is now a byte array containing whatever just arrived from the client
                 
                 //this will check wich type of message the server received
@@ -102,6 +102,7 @@ namespace Server
             }
         }
 
+        //this is called every time the server receives a message
         static void ReceivedMessageFromClientManager(byte[] data, int recv, EndPoint newRemote)
         {
             //this gets the text received
@@ -127,10 +128,10 @@ namespace Server
                     }
                 }
             }
-            //received Message
+            //received a Message that is not the first one
             else
             {
-                //ReceivedMessageFromClient(data, recv);
+                
             }
         }
 
