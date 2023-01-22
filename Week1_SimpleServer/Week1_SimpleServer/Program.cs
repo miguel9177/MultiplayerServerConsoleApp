@@ -12,11 +12,17 @@ namespace Server
 {
     internal class Program
     {
-        static Socket newsock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp); //make a socket using UDP. The parameters passed are enums used by the constructor of Socket to configure the socket.
+        //make a socket using UDP. The parameters passed are enums used by the constructor of Socket to configure the socket.
+        static Socket newsock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        //TO-DO
         static IPEndPoint[] sender = new IPEndPoint[30];
+        //TO-DO
         static EndPoint[] Remote = new EndPoint[30];
+        //this stores the ip adress
         static string serverIpAdress = "192.168.0.38";
+        //this stores the player info string
         static string playerInfo = "";
+
         static void Main(string[] args)
         {
             initializeServer();
@@ -31,119 +37,106 @@ namespace Server
         }
 
 
+        //this initializes the server, opening the socket
         static void initializeServer()
         {
-            //task 1
-
-            IPEndPoint ipep = new IPEndPoint(IPAddress.Parse(serverIpAdress), 9050); //our server IP. This is set to local (127.0.0.1) on socket 9050. If 9050 is firewalled, you might want to try another!
-
+            //create the endpoint using the specific ip adress and utilizing the port 9050
+            IPEndPoint ipep = new IPEndPoint(IPAddress.Parse(serverIpAdress), 9050); 
 
             newsock.Bind(ipep); //bind the socket to our given IP
             Console.WriteLine("Socket open..."); //if we made it this far without any networking errors, it’s a good start!
         }
 
+        //this runs in a thread and sends the data to the player
         static private void SendData()
         {
+            //this variable will be used to send the data to the player
             byte[] data = new byte[1024];
 
-
-
+            //infinite loop to always send data to the players
             while (true)
             {
+                //loop through every connection (in this case we loop through 30 positions)
                 for (int i = 1; i < Remote.Length; i++)
                 {
+                    //if this connection is not null, we send the data to him
                     if (Remote[i] != null)
                     {
-                        //TimeSpan currentTime = DateTime.Now.TimeOfDay;
+                        //we make sure the data variable is always the same size
                         data = new byte[1024];
-                        data = Encoding.ASCII.GetBytes(playerInfo); //remember we need to convert anything to bytes to send it
-                        newsock.SendTo(data, data.Length, SocketFlags.None, Remote[i]);//send the bytes for the ‘hi’ string to the Remote that just connected. First parameter is the data, 2nd is packet size, 3rd is any flags we want, and 4th is destination client.
-
+                        //we transform the player info into bytes, since we need to convert everything into bytes in order to send it
+                        data = Encoding.ASCII.GetBytes(playerInfo);
+                        //send the bytes to the current conection. First parameter is the data, 2nd is packet size, 3rd is any flags we want, and 4th is destination client.
+                        newsock.SendTo(data, data.Length, SocketFlags.None, Remote[i]);
                     }
 
                 }
 
             }
-            //newsock.SendTo(data, data.Length, SocketFlags.None, newRemote); //send the bytes for the ‘hi’ string to the Remote that just connected. First parameter is the data, 2nd is packet size, 3rd is any flags we want, and 4th is destination client.
 
         }
 
+        //this runs in a thread and receives the player data
         static private void ReceiveData()
         {
-
-
-            byte[] data = new byte[1024]; // the (expected) packet size. Powers of 2 are good. Typically for a game we want small, optimised packets travelling fast. The 1024 bytes chosen here is arbitrary – you should adjust it.
+            //this variable will store the data received from the player
+            byte[] data = new byte[1024]; 
+            
             int recv;
-
-            //task 2
+            
+            //this variable will store the current player index we are receiving the data from
             int pos = 0;
 
-
-            //ConsoleKey keyCheck;
+            //this is the infinite loop to be able to always receive the data
             while (true)
             {
-
+                
                 sender[pos] = new IPEndPoint(IPAddress.Any, 0);
+                //if the connection is null, it means this is a new client
                 if (Remote[pos] == null)
                 {
                     Remote[pos] = (EndPoint)(sender[pos]);
                 }
 
-
-                //IPEndPoint newSender = new IPEndPoint(IPAddress.Any, 0);
-                //EndPoint newRemote = Remote[pos];
-
-                //if (Remote[pos] != null) { 
-                //    newRemote = Remote[pos];
-                //}
-
+                //this stores the new connection
                 EndPoint newRemote = Remote[pos];
+                //we make sure the variable data is the same size
                 data = new byte[1024];
+                //we receive the message from the player
                 recv = newsock.ReceiveFrom(data, ref newRemote); //recv is now a byte array containing whatever just arrived from the client
-                //EndPoint newRemote = Remote[pos];
-                Console.WriteLine("Message received from " + newRemote.ToString()); //this will show the client’s unique id
-                //Console.WriteLine(Encoding.ASCII.GetString(data, 0, recv)); //and this will show the data
-                string text = Encoding.ASCII.GetString(data, 0, recv); //and this will show the data
-                playerInfo = Encoding.ASCII.GetString(data, 0, recv);
+                //this will show the client’s unique id
+                Console.WriteLine("Message received from " + newRemote.ToString()); 
+                //this gets the text received
+                string text = Encoding.ASCII.GetString(data, 0, recv);
+                //this stores the player info
+                playerInfo = text;
+                //this writes the text received from the player
                 Console.WriteLine(playerInfo);
+
+                //if the text received is FirstEntrance, it means this is a new connection
                 if (text == "FirstEntrance")
                 {
+                    //we store a message to send to the client
                     string hi = "Yep, you just connected!";
-                    data = Encoding.ASCII.GetBytes(hi); //remember we need to convert anything to bytes to send it
-                    newsock.SendTo(data, data.Length, SocketFlags.None, newRemote); //send the bytes for the ‘hi’ string to the Remote that just connected. First parameter is the data, 2nd is packet size, 3rd is any flags we want, and 4th is destination client.
+                    //remember we need to convert anything to bytes to send it
+                    data = Encoding.ASCII.GetBytes(hi);
+                    //we send the information to the client, so that the client knows that he just connected
+                    newsock.SendTo(data, data.Length, SocketFlags.None, newRemote); 
+                    //we increase a pos, since we just connected a new client, and this stores the last connected index
                     pos = pos + 1;
+                    //we store the connection
                     Remote[pos] = newRemote;
 
                 }
+                //TO-DO HANDLE NEW INFORMATION RECEIVED FROM THE PLAYER
                 else
                 {
-                    //SendData();
-                    //string hi = "Ganda Maluco";
-                    //data = Encoding.ASCII.GetBytes(hi); //remember we need to convert anything to bytes to send it
-                    //newsock.SendTo(data, data.Length, SocketFlags.None, newRemote); //send the bytes for the ‘hi’ string to the Remote that just connected. First parameter is the data, 2nd is packet size, 3rd is any flags we want, and 4th is destination client.
 
                 }
 
-
-
-                //bool newConnect = false;
-                //for (int i = 0; i < newRemoteList.Length; i++)
-                //{
-                //    if (newRemoteList[i] == Remote[i])
-                //    {
-                //        newConnect = true;
-                //        break;
-
-                //    }
-
-                //}
-                //if(!newConnect)
-                //    pos = pos + 1;
-
-
-
             }
         }
+
         static private void KeyCheker()
         {
 
