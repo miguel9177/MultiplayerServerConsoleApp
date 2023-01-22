@@ -17,11 +17,12 @@ namespace Server
         //TO-DO
         static IPEndPoint[] sender = new IPEndPoint[30];
         //TO-DO
-        static EndPoint[] Remote = new EndPoint[30];
+        static EndPoint[] allClients = new EndPoint[30];
+
         //this stores the ip adress
         static string serverIpAdress = "192.168.0.38";
         //this stores the player info string
-        static string playerInfo = "";
+        //static string playerInfo = "";
 
         static void Main(string[] args)
         {
@@ -57,17 +58,17 @@ namespace Server
             while (true)
             {
                 //loop through every connection (in this case we loop through 30 positions)
-                for (int i = 1; i < Remote.Length; i++)
+                for (int i = 1; i < allClients.Length; i++)
                 {
                     //if this connection is not null, we send the data to him
-                    if (Remote[i] != null)
+                    if (allClients[i] != null)
                     {
                         //we make sure the data variable is always the same size
                         data = new byte[1024];
                         //we transform the player info into bytes, since we need to convert everything into bytes in order to send it
-                        data = Encoding.ASCII.GetBytes(playerInfo);
+                        data = Encoding.ASCII.GetBytes("client index: " + i);
                         //send the bytes to the current conection. First parameter is the data, 2nd is packet size, 3rd is any flags we want, and 4th is destination client.
-                        newsock.SendTo(data, data.Length, SocketFlags.None, Remote[i]);
+                        newsock.SendTo(data, data.Length, SocketFlags.None, allClients[i]);
                     }
 
                 }
@@ -90,50 +91,46 @@ namespace Server
             //this is the infinite loop to be able to always receive the data
             while (true)
             {
-                
-                sender[pos] = new IPEndPoint(IPAddress.Any, 0);
-                //if the connection is null, it means this is a new client
-                if (Remote[pos] == null)
-                {
-                    Remote[pos] = (EndPoint)(sender[pos]);
-                }
-
-                //this stores the new connection
-                EndPoint newRemote = Remote[pos];
+                EndPoint newRemote = new IPEndPoint(IPAddress.Any, 0);
                 //we make sure the variable data is the same size
                 data = new byte[1024];
                 //we receive the message from the player
                 recv = newsock.ReceiveFrom(data, ref newRemote); //recv is now a byte array containing whatever just arrived from the client
-                //this will show the client’s unique id
-                Console.WriteLine("Message received from " + newRemote.ToString()); 
-                //this gets the text received
-                string text = Encoding.ASCII.GetString(data, 0, recv);
-                //this stores the player info
-                playerInfo = text;
-                //this writes the text received from the player
-                Console.WriteLine(playerInfo);
+                
+                //this will check wich type of message the server received
+                ReceivedMessageFromClientManager(data, recv, newRemote);
+            }
+        }
 
-                //if the text received is FirstEntrance, it means this is a new connection
-                if (text == "FirstEntrance")
+        static void ReceivedMessageFromClientManager(byte[] data, int recv, EndPoint newRemote)
+        {
+            //this gets the text received
+            string text = Encoding.ASCII.GetString(data, 0, recv);
+
+            //if the text received is FirstEntrance, it means this is a new connection
+            if (text == "FirstEntrance")
+            {
+                //we store a message to send to the client
+                string hi = "Yep, you just connected!";
+                Console.WriteLine("New connection with the ip " + newRemote.ToString());
+                //remember we need to convert anything to bytes to send it
+                data = Encoding.ASCII.GetBytes(hi);
+                //we send the information to the client, so that the client knows that he just connected
+                newsock.SendTo(data, data.Length, SocketFlags.None, newRemote);
+                
+                for(int i = 0; i < allClients.Length; i++)
                 {
-                    //we store a message to send to the client
-                    string hi = "Yep, you just connected!";
-                    //remember we need to convert anything to bytes to send it
-                    data = Encoding.ASCII.GetBytes(hi);
-                    //we send the information to the client, so that the client knows that he just connected
-                    newsock.SendTo(data, data.Length, SocketFlags.None, newRemote); 
-                    //we increase a pos, since we just connected a new client, and this stores the last connected index
-                    pos = pos + 1;
-                    //we store the connection
-                    Remote[pos] = newRemote;
-
+                    if (allClients[i] == null)
+                    {
+                        allClients[i] = newRemote;
+                        return;
+                    }
                 }
-                //TO-DO HANDLE NEW INFORMATION RECEIVED FROM THE PLAYER
-                else
-                {
-
-                }
-
+            }
+            //received Message
+            else
+            {
+                //ReceivedMessageFromClient(data, recv);
             }
         }
 
