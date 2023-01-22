@@ -21,8 +21,6 @@ namespace Server
 
         //this stores the ip adress
         static string serverIpAdress = "192.168.0.38";
-        //this stores the player info string
-        //static string playerInfo = "";
 
         static void Main(string[] args)
         {
@@ -58,7 +56,7 @@ namespace Server
             while (true)
             {
                 //loop through every connection (in this case we loop through 30 positions)
-                for (int i = 1; i < allClients.Length; i++)
+                for (int i = 0; i < allClients.Length; i++)
                 {
                     //if this connection is not null, we send the data to him
                     if (allClients[i] != null)
@@ -131,7 +129,7 @@ namespace Server
             //received a Message that is not the first one
             else
             {
-                
+                Console.WriteLine("Received this message from the ip: " + newRemote.ToString() + " and the message is " + text);   
             }
         }
 
