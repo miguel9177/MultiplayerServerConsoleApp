@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+using Serializer;
 
 
 namespace Server
@@ -129,7 +130,19 @@ namespace Server
             //received a Message that is not the first one
             else
             {
-                Console.WriteLine("Received this message from the ip: " + newRemote.ToString() + " and the message is " + text);   
+                
+                PlayerInfoClass playerInfo = ObjectsSerializer.Deserialize<PlayerInfoClass>(data); //data.Deserialize<PlayerInfoClass>();
+                if (playerInfo != null)
+                {
+                    Console.WriteLine("Received player info-> position: " + playerInfo.position + " rotation: " + playerInfo.rotation);
+                    // Do something with receivedClass
+                    //Console.WriteLine("Received this message from the ip: " + newRemote.ToString() + " and the message is " + text);
+                }
+                else
+                {
+                    // The received data is not of the expected type
+                    Console.WriteLine("The data received was not a playerInfoClass");
+                }
             }
         }
 
