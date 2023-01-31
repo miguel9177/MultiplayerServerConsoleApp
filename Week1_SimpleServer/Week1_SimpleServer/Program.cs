@@ -109,28 +109,9 @@ namespace Server
             //this gets the text received
             string text = Encoding.ASCII.GetString(data, 0, recv);
 
-            //if the text received is FirstEntrance, it means this is a new connection
-            if (text == "FirstEntrance")
-            {
-                //we store a message to send to the client
-                string hi = "Yep, you just connected!";
-                Console.WriteLine("New connection with the ip " + newRemote.ToString());
-                //remember we need to convert anything to bytes to send it
-                data = Encoding.ASCII.GetBytes(hi);
-                //we send the information to the client, so that the client knows that he just connected
-                newsock.SendTo(data, data.Length, SocketFlags.None, newRemote);
-                
-                for(int i = 0; i < allClients.Length; i++)
-                {
-                    if (allClients[i] == null)
-                    {
-                        allClients[i] = newRemote;
-                        return;
-                    }
-                }
-            }
+       
             //is this packet a UID request?
-            else if (text.Contains("I need a UID for local object:"))
+            if (text.Contains("I need a UID for local object:"))
             {
                 Console.WriteLine(text.Substring(text.IndexOf(':')));
 
@@ -140,24 +121,19 @@ namespace Server
                 string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
                 Console.WriteLine(returnVal);
                 newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, newRemote);
+
+                for (int i = 0; i < allClients.Length; i++)
+                {
+                    if (allClients[i] == null)
+                    {
+                        allClients[i] = newRemote;
+                        return;
+                    }
+                }
             }
             //received a Message that is not the first one
             else
             {
-
-                // PlayerInfoClass playerInfo = ObjectsSerializer.Deserialize<PlayerInfoClass>(data); //data.Deserialize<PlayerInfoClass>();
-                //if (playerInfo != null)
-                //{
-                //    Console.WriteLine("Received player info-> position: " + playerInfo.position + " rotation: " + playerInfo.rotation);
-                //    // Do something with receivedClass
-                //    //Console.WriteLine("Received this message from the ip: " + newRemote.ToString() + " and the message is " + text);
-                //}
-                //else
-                //{
-                //    // The received data is not of the expected type
-                //    Console.WriteLine("The data received was not a playerInfoClass");
-                //}
-
                 Console.WriteLine("MEssage received from the server: " + text);
             }
         }
