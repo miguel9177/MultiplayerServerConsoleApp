@@ -21,7 +21,9 @@ namespace Server
         static EndPoint[] allClients = new EndPoint[30];
 
         //this stores the ip adress
-        static string serverIpAdress = "192.168.0.38";
+        static string serverIpAdress = "10.1.17.235";
+
+        static int lastAssignedGlobalID = 12; //I arbitrarily start at 12 so it’s easy to see if it’s working 😊z
 
         static void Main(string[] args)
         {
@@ -127,22 +129,36 @@ namespace Server
                     }
                 }
             }
+            //is this packet a UID request?
+            else if (text.Contains("I need a UID for local object:"))
+            {
+                Console.WriteLine(text.Substring(text.IndexOf(':')));
+
+                //parse the string into an into to get the local ID
+                int localObjectNumber = Int32.Parse(text.Substring(text.IndexOf(':') + 1));
+                //assign the ID
+                string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
+                Console.WriteLine(returnVal);
+                newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, newRemote);
+            }
             //received a Message that is not the first one
             else
             {
-                
-                PlayerInfoClass playerInfo = ObjectsSerializer.Deserialize<PlayerInfoClass>(data); //data.Deserialize<PlayerInfoClass>();
-                if (playerInfo != null)
-                {
-                    Console.WriteLine("Received player info-> position: " + playerInfo.position + " rotation: " + playerInfo.rotation);
-                    // Do something with receivedClass
-                    //Console.WriteLine("Received this message from the ip: " + newRemote.ToString() + " and the message is " + text);
-                }
-                else
-                {
-                    // The received data is not of the expected type
-                    Console.WriteLine("The data received was not a playerInfoClass");
-                }
+
+                // PlayerInfoClass playerInfo = ObjectsSerializer.Deserialize<PlayerInfoClass>(data); //data.Deserialize<PlayerInfoClass>();
+                //if (playerInfo != null)
+                //{
+                //    Console.WriteLine("Received player info-> position: " + playerInfo.position + " rotation: " + playerInfo.rotation);
+                //    // Do something with receivedClass
+                //    //Console.WriteLine("Received this message from the ip: " + newRemote.ToString() + " and the message is " + text);
+                //}
+                //else
+                //{
+                //    // The received data is not of the expected type
+                //    Console.WriteLine("The data received was not a playerInfoClass");
+                //}
+
+                Console.WriteLine("MEssage received from the server: " + text);
             }
         }
 
