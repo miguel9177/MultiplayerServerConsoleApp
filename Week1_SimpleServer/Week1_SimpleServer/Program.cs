@@ -16,9 +16,9 @@ namespace Server
         //make a socket using UDP. The parameters passed are enums used by the constructor of Socket to configure the socket.
         static Socket newsock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
         //TO-DO
-        static IPEndPoint[] sender = new IPEndPoint[30];
+        static List<IPEndPoint> sender = new List<IPEndPoint>();
         //TO-DO
-        static EndPoint[] allClients = new EndPoint[30];
+        static List<EndPoint> allClients = new List<EndPoint>();
 
         //this stores the ip adress
         static string serverIpAdress = "10.1.17.235";
@@ -62,23 +62,15 @@ namespace Server
             while (true)
             {
                 //loop through every connection (in this case we loop through 30 positions)
-                for (int i = 0; i < allClients.Length; i++)
+                for (int i = 0; i < allClients.Count; i++)
                 {
                     //if this connection is not null, we send the data to him
                     if (allClients[i] != null)
                     {
-                        sender[i] = (IPEndPoint)allClients[i];
-
-                        if (sender[i].Port != 0)
+                        foreach (KeyValuePair<int, byte[]> kvp in gameState.ToList())
                         {
-                            foreach (KeyValuePair<int, byte[]> kvp in gameState)
-                            {
-                                newsock.SendTo(kvp.Value, kvp.Value.Length, SocketFlags.None, sender[i]);
-                            }
+                            newsock.SendTo(kvp.Value, kvp.Value.Length, SocketFlags.None, allClients[i]);
                         }
-
-
-                       
                     }
 
                 }
@@ -128,15 +120,10 @@ namespace Server
                 data = Encoding.ASCII.GetBytes(hi);
                 //we send the information to the client, so that the client knows that he just connected
                 newsock.SendTo(data, data.Length, SocketFlags.None, newRemote);
-                
-                for(int i = 0; i < allClients.Length; i++)
-                {
-                    if (allClients[i] == null)
-                    {
-                        allClients[i] = newRemote;
-                        return;
-                    }
-                }
+
+                sender.Add((IPEndPoint)newRemote);
+                //TODO CHECK IF CONNECTION ALREADY EXISTS
+                allClients.Add(newRemote);
             }
             //is this packet a UID request?
             else if (text.Contains("I need a UID for local object:"))
@@ -188,7 +175,7 @@ namespace Server
             int playerNumber = 0;
             while (true)
             {
-                for (int i = 0; i < allClients.Length; i++)
+                for (int i = 0; i < allClients.Count; i++)
                 {
                     if (allClients[i] != null)
                         playerNumber++;
