@@ -25,6 +25,8 @@ namespace Server
 
         static int lastAssignedGlobalID = 12; //I arbitrarily start at 12 so it’s easy to see if it’s working 😊z
 
+        static Dictionary<int, byte[]> gameState = new Dictionary<int, byte[]>(); //initialise this at the start of the program
+
         static void Main(string[] args)
         {
             initializeServer();
@@ -32,10 +34,11 @@ namespace Server
             Thread thr1 = new Thread(SendData);
             Thread thr2 = new Thread(KeyCheker);
             Thread thr3 = new Thread(ReceiveData);
-
+            Thread thr4 = new Thread(CheckConnections);
             thr1.Start();
             thr2.Start();
             thr3.Start();
+            thr4.Start();
         }
 
 
@@ -64,12 +67,18 @@ namespace Server
                     //if this connection is not null, we send the data to him
                     if (allClients[i] != null)
                     {
-                        //we make sure the data variable is always the same size
-                        data = new byte[1024];
-                        //we transform the player info into bytes, since we need to convert everything into bytes in order to send it
-                        data = Encoding.ASCII.GetBytes("client index: " + i);
-                        //send the bytes to the current conection. First parameter is the data, 2nd is packet size, 3rd is any flags we want, and 4th is destination client.
-                        newsock.SendTo(data, data.Length, SocketFlags.None, allClients[i]);
+                        sender[i] = (IPEndPoint)allClients[i];
+
+                        if (sender[i].Port != 0)
+                        {
+                            foreach (KeyValuePair<int, byte[]> kvp in gameState)
+                            {
+                                newsock.SendTo(kvp.Value, kvp.Value.Length, SocketFlags.None, sender[i]);
+                            }
+                        }
+
+
+                       
                     }
 
                 }
@@ -109,9 +118,28 @@ namespace Server
             //this gets the text received
             string text = Encoding.ASCII.GetString(data, 0, recv);
 
-       
+            //if the text received is FirstEntrance, it means this is a new connection
+            if (text == "FirstEntrance")
+            {
+                //we store a message to send to the client
+                string hi = "Yep, you just connected!";
+                Console.WriteLine("New connection with the ip " + newRemote.ToString());
+                //remember we need to convert anything to bytes to send it
+                data = Encoding.ASCII.GetBytes(hi);
+                //we send the information to the client, so that the client knows that he just connected
+                newsock.SendTo(data, data.Length, SocketFlags.None, newRemote);
+                
+                for(int i = 0; i < allClients.Length; i++)
+                {
+                    if (allClients[i] == null)
+                    {
+                        allClients[i] = newRemote;
+                        return;
+                    }
+                }
+            }
             //is this packet a UID request?
-            if (text.Contains("I need a UID for local object:"))
+            else if (text.Contains("I need a UID for local object:"))
             {
                 Console.WriteLine(text.Substring(text.IndexOf(':')));
 
@@ -121,20 +149,24 @@ namespace Server
                 string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
                 Console.WriteLine(returnVal);
                 newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, newRemote);
-
-                for (int i = 0; i < allClients.Length; i++)
-                {
-                    if (allClients[i] == null)
-                    {
-                        allClients[i] = newRemote;
-                        return;
-                    }
-                }
             }
             //received a Message that is not the first one
-            else
+            else if (text.Contains(";"))//TODO, CHANGE IDENTIFIER
             {
-                Console.WriteLine("MEssage received from the server: " + text);
+                //get the global id from the packet
+                Console.WriteLine(text);
+                string globalId = text.Substring(0, text.IndexOf(';'));
+                int intId = Int32.Parse(globalId);
+                if (gameState.ContainsKey(intId))
+                { 
+                    //if true, we're already tracking the object
+                    gameState[intId] = data; //data being the original bytes of the packet
+                }
+                else //the object is new to the game
+                {
+                    gameState.Add(intId, data);
+                }
+
             }
         }
 
@@ -151,5 +183,22 @@ namespace Server
             }
         }
 
+        static private void CheckConnections()
+        {
+            int playerNumber = 0;
+            while (true)
+            {
+                for (int i = 0; i < allClients.Length; i++)
+                {
+                    if (allClients[i] != null)
+                        playerNumber++;
+                }
+                Console.WriteLine("Players Connected: " + playerNumber);
+                playerNumber = 0;
+
+                Thread.Sleep(5000);
+            }
+
+        }
     }
 }
