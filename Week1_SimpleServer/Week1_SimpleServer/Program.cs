@@ -21,7 +21,7 @@ namespace Server
         static List<EndPoint> allClients = new List<EndPoint>();
 
         //this stores the ip adress
-        static string serverIpAdress = "10.1.18.73";
+        static string serverIpAdress = "10.1.8.64";
 
         static int lastAssignedGlobalID = 12; //I arbitrarily start at 12 so it’s easy to see if it’s working 😊z
 
@@ -31,11 +31,11 @@ namespace Server
         {
             initializeServer();
 
-            //Thread thr1 = new Thread(SendData);
+            Thread thr1 = new Thread(SendData);
             Thread thr2 = new Thread(KeyCheker);
             Thread thr3 = new Thread(ReceiveData);
             Thread thr4 = new Thread(CheckConnections);
-            //thr1.Start();
+            thr1.Start();
             thr2.Start();
             thr3.Start();
             thr4.Start();
@@ -50,6 +50,8 @@ namespace Server
 
             newsock.Bind(ipep); //bind the socket to our given IP
             Console.WriteLine("Socket open..."); //if we made it this far without any networking errors, it’s a good start!
+
+           
         }
 
         //this runs in a thread and sends the data to the player
@@ -59,8 +61,8 @@ namespace Server
             byte[] data = new byte[1024];
 
             //infinite loop to always send data to the players
-            //while (true)
-            //{
+            while (true)
+            {
                 //loop through every connection (in this case we loop through 30 positions)
                 for (int i = 0; i < allClients.Count; i++)
                 {
@@ -73,7 +75,7 @@ namespace Server
                         }
                     }
 
-              //  }
+                }
 
             }
 
@@ -102,7 +104,7 @@ namespace Server
                 //this will check wich type of message the server received
                 ReceivedMessageFromClientManager(data, recv, newRemote);
 
-                SendData();
+                
             }
         }
 
