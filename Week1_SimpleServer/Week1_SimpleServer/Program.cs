@@ -21,7 +21,7 @@ namespace Server
         static List<EndPoint> allClients = new List<EndPoint>();
 
         //this stores the ip adress
-        static string serverIpAdress = "10.1.8.64";
+        static string serverIpAdress = "10.1.129.150";
 
         static int lastAssignedGlobalID = 12; //I arbitrarily start at 12 so it’s easy to see if it’s working 😊z
 
@@ -76,7 +76,7 @@ namespace Server
                     }
 
                 }
-
+                Thread.Sleep(50);
             }
 
         }
