@@ -7,7 +7,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using Serializer;
-
+using System.Globalization;
+using Extensions.Vector;
 
 namespace Server
 {
@@ -21,11 +22,11 @@ namespace Server
         static List<EndPoint> allClients = new List<EndPoint>();
 
         //this stores the ip adress
-        static string serverIpAdress = "10.1.129.150";
+        static string serverIpAdress = "10.1.7.94";
 
-        static int lastAssignedGlobalID = 12; //I arbitrarily start at 12 so it’s easy to see if it’s working 😊z
+        static int lastAssignedGlobalID = 12; //we start with id 12
 
-        static Dictionary<int, byte[]> gameState = new Dictionary<int, byte[]>(); //initialise this at the start of the program
+        static Dictionary<int, PlayerInfoClass> gameState = new Dictionary<int, PlayerInfoClass>(); //this stores the gamestate, it stores the client id, and then its playerInfoClass
 
         static void Main(string[] args)
         {
@@ -69,9 +70,10 @@ namespace Server
                     //if this connection is not null, we send the data to him
                     if (allClients[i] != null)
                     {
-                        foreach (KeyValuePair<int, byte[]> kvp in gameState.ToList())
+                        foreach (KeyValuePair<int, PlayerInfoClass> kvp in gameState.ToList())
                         {
-                            newsock.SendTo(kvp.Value, kvp.Value.Length, SocketFlags.None, allClients[i]);
+                            byte[] dataToSend = ConvertPlayerInfoClassToByte(kvp.Value);
+                            newsock.SendTo(dataToSend, dataToSend.Length, SocketFlags.None, allClients[i]);
                         }
                     }
 
@@ -117,55 +119,24 @@ namespace Server
             //if the text received is FirstEntrance, it means this is a new connection
             if (text == "FirstEntrance")
             {
-                //we store a message to send to the client
-                string hi = "Yep, you just connected!";
-                Console.WriteLine("New connection with the ip " + newRemote.ToString());
-                //remember we need to convert anything to bytes to send it
-                data = Encoding.ASCII.GetBytes(hi);
-                //we send the information to the client, so that the client knows that he just connected
-                newsock.SendTo(data, data.Length, SocketFlags.None, newRemote);
-
-                sender.Add((IPEndPoint)newRemote);
-                //TODO CHECK IF CONNECTION ALREADY EXISTS
-                allClients.Add(newRemote);
+                //since this received a new connection, it will handle the new connection message, by adding a new client
+                FirstEntrance(newRemote);
             }
-            //is this packet a UID request?
+            //is this packet a UID request
             else if (text.Contains("I need a UID for local object:"))
             {
-                Console.WriteLine(text.Substring(text.IndexOf(':')));
-
-                //parse the string into an into to get the local ID
-                int localObjectNumber = Int32.Parse(text.Substring(text.IndexOf(':') + 1));
-                //assign the ID
-                string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
-                Console.WriteLine(returnVal);
-                newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, newRemote);
+                GiveNewUid(text, newRemote);
             }
-            //received a Message that is not the first one
+            //received a Message that is Object Data
             else if (text.Contains("Object data;"))//TODO, CHANGE IDENTIFIER
             {
-                //get the global id from the packet
-                Console.WriteLine(text);
-                
-                string globalId = text.Split(";")[1];
-                int intId = Int32.Parse(globalId);
-                if (gameState.ContainsKey(intId))
-                { 
-                    //if true, we're already tracking the object
-                    gameState[intId] = data; //data being the original bytes of the packet
-                }
-                else //the object is new to the game
-                {
-                    gameState.Add(intId, data);
-                }
-
+                UpdateObjectData(text, data);
             }
 
         }
 
         static private void KeyCheker()
         {
-
             while (true)
             {
                 if (Console.ReadKey().Key == ConsoleKey.Escape)
@@ -193,7 +164,106 @@ namespace Server
             }
 
         }
-       
+
+        #region Helper Functions
+
+        //this is called a new user just connected, it sends a message saying that he just connected, and stores a new connection
+        private static void FirstEntrance(EndPoint _newRemote)
+        {
+            //we store a message to send to the client
+            string hi = "Yep, you just connected!";
+            Console.WriteLine("New connection with the ip " + _newRemote.ToString());
+            //remember we need to convert anything to bytes to send it
+            byte[] _data = Encoding.ASCII.GetBytes(hi);
+            //we send the information to the client, so that the client knows that he just connected
+            newsock.SendTo(_data, _data.Length, SocketFlags.None, _newRemote);
+
+            sender.Add((IPEndPoint)_newRemote);
+            //TODO CHECK IF CONNECTION ALREADY EXISTS
+            allClients.Add(_newRemote);
+        }
+
+        //this gives a new UID (unique id identifier)
+        private static void GiveNewUid(string _text, EndPoint _newRemote)
+        {
+            Console.WriteLine(_text.Substring(_text.IndexOf(':')));
+
+            //parse the string into an into to get the local ID
+            int localObjectNumber = Int32.Parse(_text.Substring(_text.IndexOf(':') + 1));
+            //assign the ID
+            string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
+            Console.WriteLine(returnVal);
+            newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, _newRemote);
+        }
         
+        //this receives a update of an object, and stores it on the gamestate correct id
+        private static void UpdateObjectData(string _text, byte[] _data)
+        {
+            //get the global id from the packet
+            Console.WriteLine(_text);
+
+            string globalId = _text.Split(";")[1];
+            int intId = Int32.Parse(globalId);
+            
+            //if true, we're already tracking the object
+            if (gameState.ContainsKey(intId))
+            {
+                //store the player info, converting the received data to bytes
+                gameState[intId] = ConvertByteToPlayerInfoClass(_data); 
+            }
+            //the object is new to the game
+            else
+            {
+                //since this is a new player, we add this item to the server
+                gameState.Add(intId, ConvertByteToPlayerInfoClass(_data));
+            }
+        }
+
+        //this receives a byte information, and converts it into player data
+        private static PlayerInfoClass ConvertByteToPlayerInfoClass(byte[] _byte_infoOfPlayer)
+        {
+            string _string_InfoOfPlayer = Encoding.ASCII.GetString(_byte_infoOfPlayer);
+
+            string[] values = _string_InfoOfPlayer.Split(';');
+
+            int _uniqueNetworkID = Int32.Parse(values[1]);
+
+            CultureInfo ci = (CultureInfo)CultureInfo.CurrentCulture.Clone();
+            ci.NumberFormat.CurrencyDecimalSeparator = ".";
+
+            float posX = float.Parse(values[2], NumberStyles.Any, ci);
+            float posZ = float.Parse(values[3], NumberStyles.Any, ci);
+            float posY = float.Parse(values[4], NumberStyles.Any, ci);
+
+            float rotX = float.Parse(values[5], NumberStyles.Any, ci);
+            float rotZ = float.Parse(values[6], NumberStyles.Any, ci);
+            float rotY = float.Parse(values[7], NumberStyles.Any, ci);
+            float rotW = float.Parse(values[8], NumberStyles.Any, ci);
+
+            PlayerInfoClass playerInfoReceived = new PlayerInfoClass();
+            playerInfoReceived.position = new Vector3(posX / -100, posY / 100, posZ / 100);
+            playerInfoReceived.rotation = new Quaternion(rotX, rotY, rotZ, rotW);
+            playerInfoReceived.uniqueNetworkID = _uniqueNetworkID;
+
+            return playerInfoReceived;
+        }
+
+        //this receives a player data, and converts it into byte information
+        private static byte[] ConvertPlayerInfoClassToByte(PlayerInfoClass _infoOfPlayer)
+        {
+            //create a delimited string with the required data
+            string returnVal = "Object data;" + _infoOfPlayer.uniqueNetworkID + ";" +
+                                _infoOfPlayer.position.x * -100 + ";" +
+                                _infoOfPlayer.position.z * 100 + ";" +
+                                _infoOfPlayer.position.y * 100 + ";" +
+                                _infoOfPlayer.rotation.x + ";" +
+                                _infoOfPlayer.rotation.z + ";" +
+                                _infoOfPlayer.rotation.y + ";" +
+                                _infoOfPlayer.rotation.w + ";"
+                                ;
+
+            return Encoding.ASCII.GetBytes(returnVal);
+        }
+        #endregion
     }
 }

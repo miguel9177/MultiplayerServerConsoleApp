@@ -6,24 +6,48 @@ using System.Runtime.Serialization;
 
 namespace Extensions.Vector
 {
-    //this class creates a Vector3 that is serializable, since its mandatory to be able to send serializable data through the network, and the normal vector 3 isnt serializable
-    [DataContract]
-    public class Vector3Serializable
+    public class Vector3
     {
-        [DataMember]
         public float x;
         public float y;
         public float z;
 
-        public Vector3Serializable(float x_, float y_, float z_)
+        public Vector3(float x_, float y_, float z_)
         {
             x = x_;
             y = y_;
             z = z_;
         }
 
-        public Vector3Serializable() { }
+        public Vector3()
+        {
+            x = 0;
+            y = 0;
+            z = 0;
+        }
+    }
 
+    public class Quaternion
+    {
+        public float x;
+        public float y;
+        public float z;
+        public float w;
 
+        public Quaternion(float x_, float y_, float z_, float w_)
+        {
+            x = x_;
+            y = y_;
+            z = z_;
+            w = w_;
+        }
+
+        public Quaternion()
+        {
+            x = 0;
+            y = 0;
+            z = 0;
+            w = 0;
+        }
     }
 }
