@@ -12,6 +12,7 @@ public class PlayerInfoClass
     public Vector3 position;
     public Quaternion rotation;
     public int uniqueNetworkID;
+    public float hp;
 
     public PlayerInfoClass()
     {
