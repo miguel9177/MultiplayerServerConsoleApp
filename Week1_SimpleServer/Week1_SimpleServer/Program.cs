@@ -20,14 +20,14 @@ namespace Server
         //TO-DO
         static List<IPEndPoint> sender = new List<IPEndPoint>();
         //TO-DO
-        static List<EndPoint> allClients = new List<EndPoint>();
+        //static List<EndPoint> allClients = new List<EndPoint>();
 
         //this stores the ip adress
         static string serverIpAdress = "127.0.0.1";
 
         static int lastAssignedGlobalID = 12; //we start with id 12
 
-        static Dictionary<int, PlayerInfoClass> gameState = new Dictionary<int, PlayerInfoClass>(); //this stores the gamestate, it stores the client id, and then its playerInfoClass
+        static Dictionary<EndPoint, PlayerInfoClass> gameState = new Dictionary<EndPoint, PlayerInfoClass>(); //this stores the gamestate, it stores the client id, and then its playerInfoClass
 
         static void Main(string[] args)
         {
@@ -66,18 +66,19 @@ namespace Server
             while (true)
             {
                 //loop through every connection (in this case we loop through 30 positions)
-                for (int i = 0; i < allClients.Count; i++)
+                foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
                 {
-                    //if this connection is not null, we send the data to him
-                    if (allClients[i] != null)
+                    if(kvp1.Value != null)
                     {
-                        foreach (KeyValuePair<int, PlayerInfoClass> kvp in gameState.ToList())
+                        foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp2 in gameState.ToList())
                         {
-                            byte[] dataToSend = ConvertPlayerInfoClassToByte(kvp.Value);
-                            newsock.SendTo(dataToSend, dataToSend.Length, SocketFlags.None, allClients[i]);
+                            if(kvp2.Value != null)
+                            {
+                                byte[] dataToSend = ConvertPlayerInfoClassToByte(kvp2.Value);
+                                newsock.SendTo(dataToSend, dataToSend.Length, SocketFlags.None, kvp1.Key);
+                            }
                         }
                     }
-
                 }
                 Thread.Sleep(50);
             }
@@ -129,7 +130,7 @@ namespace Server
             //received a Message that is Object Data
             else if (text.Contains("Object data;"))//TODO, CHANGE IDENTIFIER
             {
-                UpdateObjectData(text, data);
+                UpdateObjectData(text, data, newRemote);
             }
             else if (text.Contains("GameplayEvent:"))
             {
@@ -155,11 +156,13 @@ namespace Server
             int playerNumber = 0;
             while (true)
             {
-                for (int i = 0; i < allClients.Count; i++)
+                //loop through every connection (in this case we loop through 30 positions)
+                foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
                 {
-                    if (allClients[i] != null)
+                    if (kvp1.Value != null)
                         playerNumber++;
                 }
+                
                 Console.WriteLine("Players Connected: " + playerNumber);
                 playerNumber = 0;
 
@@ -182,25 +185,48 @@ namespace Server
             newsock.SendTo(_data, _data.Length, SocketFlags.None, _newRemote);
 
             sender.Add((IPEndPoint)_newRemote);
+
+            lastAssignedGlobalID += 1;
+            //assign the ID
+            int globalId = lastAssignedGlobalID;
             //TODO CHECK IF CONNECTION ALREADY EXISTS
-            allClients.Add(_newRemote);
+            gameState.Add(_newRemote, new PlayerInfoClass 
+            { 
+                uniqueNetworkID = lastAssignedGlobalID,
+                hp = 100,
+                position = new Vector3(),
+                rotation = new Quaternion()
+            });
+
+            //parse the string into an into to get the local ID
+            //int localObjectNumber = Int32.Parse(_text.Substring(_text.IndexOf(':') + 1));
+            //assign the ID
+            //string returnVal = ("Assigned UID:" + 0 + ";" + gameState[globalId].uniqueNetworkID);
+            //Console.WriteLine(returnVal);
+            //newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, _newRemote);
         }
 
         //this gives a new UID (unique id identifier)
         private static void GiveNewUid(string _text, EndPoint _newRemote)
         {
-            Console.WriteLine(_text.Substring(_text.IndexOf(':')));
-
-            //parse the string into an into to get the local ID
-            int localObjectNumber = Int32.Parse(_text.Substring(_text.IndexOf(':') + 1));
-            //assign the ID
-            string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
-            Console.WriteLine(returnVal);
-            newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, _newRemote);
+            //loop through every connection (in this case we loop through 30 positions)
+            foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
+            {
+                if (kvp1.Key.ToString() == _newRemote.ToString())
+                {
+                    //parse the string into an into to get the local ID
+                    int localObjectNumber = Int32.Parse(_text.Substring(_text.IndexOf(':') + 1));
+                    //assign the ID
+                    string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
+                    Console.WriteLine(returnVal);
+                    newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, _newRemote);
+                }
+            }
+          
         }
         
         //this receives a update of an object, and stores it on the gamestate correct id
-        private static void UpdateObjectData(string _text, byte[] _data)
+        private static void UpdateObjectData(string _text, byte[] _data, EndPoint newRemote_)
         {
             //get the global id from the packet
             Console.WriteLine(_text);
@@ -209,16 +235,16 @@ namespace Server
             int intId = Int32.Parse(globalId);
             
             //if true, we're already tracking the object
-            if (gameState.ContainsKey(intId))
+            if (gameState.ContainsKey(newRemote_))
             {
                 //store the player info, converting the received data to bytes
-                gameState[intId] = ConvertByteToPlayerInfoClass(_data); 
+                gameState[newRemote_] = ConvertByteToPlayerInfoClass(_data); 
             }
             //the object is new to the game
             else
             {
                 //since this is a new player, we add this item to the server
-                gameState.Add(intId, ConvertByteToPlayerInfoClass(_data));
+                gameState.Add(newRemote_, ConvertByteToPlayerInfoClass(_data));
             }
         }
 
@@ -317,8 +343,18 @@ namespace Server
         private static bool CheckIfShootingAnotherPlayerIsValid(int _idOfShootingPlayer, int _idOfPlayerThatTookDamage, WeaponParentClass _weaponThatShot)
         {
             float angleTolerance = 40;
-            PlayerInfoClass playerThatShot = gameState[_idOfShootingPlayer];
-            PlayerInfoClass playerThatReceivedTheShot = gameState[_idOfPlayerThatTookDamage];
+
+            PlayerInfoClass playerThatShot = null;
+            PlayerInfoClass playerThatReceivedTheShot = null;
+
+            foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
+            {
+                if (kvp1.Value.uniqueNetworkID == _idOfShootingPlayer)
+                    playerThatShot = gameState[kvp1.Key];
+
+                if (kvp1.Value.uniqueNetworkID == _idOfPlayerThatTookDamage)
+                    playerThatReceivedTheShot = gameState[kvp1.Key];
+            }
 
             if (playerThatShot == null)
                 return false;
