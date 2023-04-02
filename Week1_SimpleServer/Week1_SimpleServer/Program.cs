@@ -9,6 +9,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using Serializer;
 using System.Globalization;
 using Extensions.Vector;
+using Week1_SimpleServer;
 
 namespace Server
 {
@@ -22,7 +23,7 @@ namespace Server
         static List<EndPoint> allClients = new List<EndPoint>();
 
         //this stores the ip adress
-        static string serverIpAdress = "10.1.7.94";
+        static string serverIpAdress = "127.0.0.1";
 
         static int lastAssignedGlobalID = 12; //we start with id 12
 
@@ -104,9 +105,7 @@ namespace Server
                 recv = newsock.ReceiveFrom(data, ref newRemote); //recv is now a byte array containing whatever just arrived from the client
                 
                 //this will check wich type of message the server received
-                ReceivedMessageFromClientManager(data, recv, newRemote);
-
-                
+                ReceivedMessageFromClientManager(data, recv, newRemote);                
             }
         }
 
@@ -132,8 +131,12 @@ namespace Server
             {
                 UpdateObjectData(text, data);
             }
-
+            else if (text.Contains("GameplayEvent:"))
+            {
+                ReceivedGameplayEventMensage(data, text, newRemote);
+            }
         }
+
 
         static private void KeyCheker()
         {
@@ -165,7 +168,7 @@ namespace Server
 
         }
 
-        #region Helper Functions
+        #region Message handling Helper Functions
 
         //this is called a new user just connected, it sends a message saying that he just connected, and stores a new connection
         private static void FirstEntrance(EndPoint _newRemote)
@@ -264,6 +267,83 @@ namespace Server
 
             return Encoding.ASCII.GetBytes(returnVal);
         }
+
+        #endregion
+
+        #region Event Message helper functions
+
+        //this is called when we receive an gameplay event message
+        private static void ReceivedGameplayEventMensage(byte[] data_, string text_, EndPoint newRemote_)
+        {
+            if (text_.Contains("Player shot another player:"))
+            {
+                ReceivedPlayerShotAnotherPlayerEvent(text_, newRemote_);
+            }
+        }
+
+        //this is called when we receive an shot another player event
+        private static void ReceivedPlayerShotAnotherPlayerEvent(string text_, EndPoint newRemote_)
+        {
+            string[] values = text_.Split(';');
+
+            //this sotres the id of the shooting player
+            int _uniqueNetworkIdOfShootingPlayer = Int32.Parse(values[1]);
+            //stores the id of the player that is receiving the damage
+            int _uniqueNetworkIdOfPlayerThatTookDamage = Int32.Parse(values[3]);
+            //stores the weapon name
+            string _weaponNameOfShootingPlayer = values[5];
+
+            //this will get the shooting player weapon, so that we can know its stats
+            WeaponParentClass? weaponClassOfShootingPlayer = WeaponManager.GetWeapon(_weaponNameOfShootingPlayer);
+
+            //if the weapon we got is invalid, we disconnect the player, since hes using an invalid weapon
+            if (weaponClassOfShootingPlayer == null)
+            {
+                DisconnectPlayer("Shooting Player weapon is a not valide weapon", _uniqueNetworkIdOfShootingPlayer);
+                return;
+            }
+
+            if (CheckIfShootingAnotherPlayerIsValid(_uniqueNetworkIdOfShootingPlayer,_uniqueNetworkIdOfPlayerThatTookDamage,weaponClassOfShootingPlayer))
+                DisconnectPlayer("Ban: player is shooting in an invalid way", _uniqueNetworkIdOfShootingPlayer);
+        }
+
+        #endregion
+
+        #region Functionality helper functions
+
+        //this checks if the shooting from one player to another is valid
+        private static bool CheckIfShootingAnotherPlayerIsValid(int _idOfShootingPlayer, int _idOfPlayerThatTookDamage, WeaponParentClass _weaponThatShot)
+        {
+            float angleTolerance = 50;
+            PlayerInfoClass playerThatShot = gameState[_idOfShootingPlayer];
+            PlayerInfoClass playerThatReceivedTheShot = gameState[_idOfPlayerThatTookDamage];
+
+            if (playerThatShot == null)
+                return false;
+
+            if (playerThatReceivedTheShot == null)
+                return false;
+
+
+            //this converts the rotation to a forward vector
+            Vector3 fwdVector = Vector3.QuaternionToFwdVector(playerThatShot.rotation);
+
+            //this calculates the dir between the shooting and the one who got shot
+            Vector3 dir = playerThatReceivedTheShot.position - playerThatShot.position;
+            dir = dir.normalized;
+
+            //gets the angle between the direction and the forward vector of the character
+            double angle = Math.Acos(Vector3.Dot(fwdVector, dir)) * (180 / Math.PI);
+
+            //we return if the shooting was valid or not
+            return angle <= angleTolerance;                 
+        }
+
+        private static void DisconnectPlayer(string disconnectReason, int idOfPlayer)
+        {
+
+        }
+
         #endregion
     }
 }
