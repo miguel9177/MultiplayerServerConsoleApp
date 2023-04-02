@@ -303,8 +303,10 @@ namespace Server
                 return;
             }
 
-            if (CheckIfShootingAnotherPlayerIsValid(_uniqueNetworkIdOfShootingPlayer,_uniqueNetworkIdOfPlayerThatTookDamage,weaponClassOfShootingPlayer))
+            if (CheckIfShootingAnotherPlayerIsValid(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer))
                 DisconnectPlayer("Ban: player is shooting in an invalid way", _uniqueNetworkIdOfShootingPlayer);
+            else
+                GiveDamageToPlayer();
         }
 
         #endregion
@@ -347,6 +349,11 @@ namespace Server
         private static void DisconnectPlayer(string disconnectReason, int idOfPlayer)
         {
 
+        }
+
+        private static void GiveDamageToPlayer()
+        {
+            
         }
 
         #endregion
