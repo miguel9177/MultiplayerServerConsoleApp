@@ -19,5 +19,6 @@ public class PlayerInfoClass
     {
         position = new Vector3(0, 0, 0);
         rotation = new Quaternion(0, 0, 0, 0);
+        hp = 100;
     }
 }

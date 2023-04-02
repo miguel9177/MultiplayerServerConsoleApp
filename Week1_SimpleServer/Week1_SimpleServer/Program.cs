@@ -197,13 +197,6 @@ namespace Server
                 position = new Vector3(),
                 rotation = new Quaternion()
             });
-
-            //parse the string into an into to get the local ID
-            //int localObjectNumber = Int32.Parse(_text.Substring(_text.IndexOf(':') + 1));
-            //assign the ID
-            //string returnVal = ("Assigned UID:" + 0 + ";" + gameState[globalId].uniqueNetworkID);
-            //Console.WriteLine(returnVal);
-            //newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, _newRemote);
         }
 
         //this gives a new UID (unique id identifier)
@@ -238,18 +231,18 @@ namespace Server
             if (gameState.ContainsKey(newRemote_))
             {
                 //store the player info, converting the received data to bytes
-                gameState[newRemote_] = ConvertByteToPlayerInfoClass(_data); 
+                gameState[newRemote_] = ConvertByteToPlayerInfoClass(newRemote_, _data); 
             }
             //the object is new to the game
             else
             {
                 //since this is a new player, we add this item to the server
-                gameState.Add(newRemote_, ConvertByteToPlayerInfoClass(_data));
+                gameState.Add(newRemote_, ConvertByteToPlayerInfoClass(newRemote_, _data));
             }
         }
 
         //this receives a byte information, and converts it into player data
-        private static PlayerInfoClass ConvertByteToPlayerInfoClass(byte[] _byte_infoOfPlayer)
+        private static PlayerInfoClass ConvertByteToPlayerInfoClass(EndPoint _newRemote, byte[] _byte_infoOfPlayer)
         {
             string _string_InfoOfPlayer = Encoding.ASCII.GetString(_byte_infoOfPlayer);
 
@@ -273,7 +266,7 @@ namespace Server
             playerInfoReceived.position = new Vector3(posX / -100, posY / 100, posZ / 100);
             playerInfoReceived.rotation = new Quaternion(rotX, rotY, rotZ, rotW);
             playerInfoReceived.uniqueNetworkID = _uniqueNetworkID;
-
+            playerInfoReceived.hp = gameState[_newRemote].hp;
             return playerInfoReceived;
         }
 
@@ -288,7 +281,8 @@ namespace Server
                                 _infoOfPlayer.rotation.x + ";" +
                                 _infoOfPlayer.rotation.z + ";" +
                                 _infoOfPlayer.rotation.y + ";" +
-                                _infoOfPlayer.rotation.w + ";"
+                                _infoOfPlayer.rotation.w + ";" +
+                                _infoOfPlayer.hp;
                                 ;
 
             return Encoding.ASCII.GetBytes(returnVal);
@@ -332,7 +326,22 @@ namespace Server
             if (CheckIfShootingAnotherPlayerIsValid(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer))
                 DisconnectPlayer("Ban: player is shooting in an invalid way", _uniqueNetworkIdOfShootingPlayer);
             else
-                GiveDamageToPlayer();
+                GiveDamageToPlayer(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer);
+        }
+
+        //this gives damage to the player
+        private static void GiveDamageToPlayer(int _idOfShootingPlayer, int _idOfPlayerThatTookDamage, WeaponParentClass _weaponThatShot)
+        {
+            //we loop through all players
+            foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
+            {
+                //TO IMPROVE GAMEPLAY TELL THE SHOOTER PLAYER THAT HE HIT AN ENEMY, USING THE IF BELOW
+                //if (kvp1.Value.uniqueNetworkID == _idOfShootingPlayer)
+                    //gameState[kvp1.Key].hp
+
+                if (kvp1.Value.uniqueNetworkID == _idOfPlayerThatTookDamage)
+                    gameState[kvp1.Key].hp -= _weaponThatShot.damage;
+            }
         }
 
         #endregion
@@ -379,17 +388,12 @@ namespace Server
             //we invert the angle, since it was working backwards
             angle = 180 - angle; 
             //we return if the shooting was valid or not
-            return angle <= angleTolerance;                 
+            return angle >= angleTolerance;                 
         }
 
         private static void DisconnectPlayer(string disconnectReason, int idOfPlayer)
         {
 
-        }
-
-        private static void GiveDamageToPlayer()
-        {
-            
         }
 
         #endregion
