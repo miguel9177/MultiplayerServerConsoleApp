@@ -11,7 +11,7 @@ namespace Week1_SimpleServer
         public RaycastWeapon()
         {
             damage = 25;
-            maxRange = 50f;
+            maxRange = 10000 / 100;
             weaponName = "Raycast Weapon";
         }
     }

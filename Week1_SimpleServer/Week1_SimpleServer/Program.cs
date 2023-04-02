@@ -314,7 +314,7 @@ namespace Server
         //this checks if the shooting from one player to another is valid
         private static bool CheckIfShootingAnotherPlayerIsValid(int _idOfShootingPlayer, int _idOfPlayerThatTookDamage, WeaponParentClass _weaponThatShot)
         {
-            float angleTolerance = 50;
+            float angleTolerance = 40;
             PlayerInfoClass playerThatShot = gameState[_idOfShootingPlayer];
             PlayerInfoClass playerThatReceivedTheShot = gameState[_idOfPlayerThatTookDamage];
 
@@ -324,6 +324,10 @@ namespace Server
             if (playerThatReceivedTheShot == null)
                 return false;
 
+            float dist = Vector3.Distance(playerThatShot.position, playerThatReceivedTheShot.position);
+            //if the distance is bigger then the max distance, it means the player is in fact cheating
+            if (dist > _weaponThatShot.maxRange + 5f)
+                return false;
 
             //this converts the rotation to a forward vector
             Vector3 fwdVector = Vector3.QuaternionToFwdVector(playerThatShot.rotation);
