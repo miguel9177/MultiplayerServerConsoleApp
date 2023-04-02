@@ -101,11 +101,12 @@ namespace Extensions.Vector
         //trans a quaternion to a fwd vector
         public static Vector3 QuaternionToFwdVector(Quaternion q)
         {
+            //WORKING THE OTHER WAY AROUND
             return new Vector3(
-               2 * (q.x * q.z - q.w * q.y),
-               2 * (q.y * q.z + q.w * q.x),
-               1 - 2 * (q.x * q.x + q.y * q.y)
-           );
+                1 - 2 * (q.y * q.y + q.z * q.z),
+                2 * (q.x * q.y + q.w * q.z),
+                2 * (q.x * q.z - q.w * q.y)
+            );
         }
     }
 

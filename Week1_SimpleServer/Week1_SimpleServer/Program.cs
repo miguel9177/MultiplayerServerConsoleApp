@@ -334,7 +334,8 @@ namespace Server
 
             //gets the angle between the direction and the forward vector of the character
             double angle = Math.Acos(Vector3.Dot(fwdVector, dir)) * (180 / Math.PI);
-
+            //we invert the angle, since it was working backwards
+            angle = 180 - angle; 
             //we return if the shooting was valid or not
             return angle <= angleTolerance;                 
         }
