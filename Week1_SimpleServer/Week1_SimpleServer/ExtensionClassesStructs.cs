@@ -3,7 +3,6 @@ using System.Runtime.Serialization;
 
 
 //THIS SCRIPT HANDLES ALL EXTENSIONS TO THE CODE
-
 namespace Extensions.Vector
 {
     //vector 3 class with all the necessary math 
@@ -110,7 +109,7 @@ namespace Extensions.Vector
         }
     }
 
-
+    //this is a quaternion class, for me to be able to store the character rotation
     public class Quaternion
     {
         public float x;

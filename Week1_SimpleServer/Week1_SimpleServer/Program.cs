@@ -17,26 +17,30 @@ namespace Server
     {
         //make a socket using UDP. The parameters passed are enums used by the constructor of Socket to configure the socket.
         static Socket newsock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        //TO-DO
-        static List<IPEndPoint> sender = new List<IPEndPoint>();
-        //TO-DO
-        //static List<EndPoint> allClients = new List<EndPoint>();
 
         //this stores the ip adress
         static string serverIpAdress = "127.0.0.1";
 
-        static int lastAssignedGlobalID = 12; //we start with id 12
+        //we start with id 12
+        static int lastAssignedGlobalID = 12;
 
-        static Dictionary<EndPoint, PlayerInfoClass> gameState = new Dictionary<EndPoint, PlayerInfoClass>(); //this stores the gamestate, it stores the client id, and then its playerInfoClass
+        //this stores the gamestate, it stores the client id, and then its playerInfoClass
+        static Dictionary<EndPoint, PlayerInfoClass> gameState = new Dictionary<EndPoint, PlayerInfoClass>(); 
 
         static void Main(string[] args)
         {
+            //this initializes the server port
             initializeServer();
 
+            //creates a send data thread, that sends all data
             Thread thr1 = new Thread(SendData);
+            //creates a keychecker thread, that checks if the userclciked a key
             Thread thr2 = new Thread(KeyCheker);
+            //creates a thread that receives the data
             Thread thr3 = new Thread(ReceiveData);
+            //creates a thread that checks all connection
             Thread thr4 = new Thread(CheckConnections);
+            //initializes all threads
             thr1.Start();
             thr2.Start();
             thr3.Start();
@@ -51,39 +55,40 @@ namespace Server
             IPEndPoint ipep = new IPEndPoint(IPAddress.Parse(serverIpAdress), 9050); 
 
             newsock.Bind(ipep); //bind the socket to our given IP
-            Console.WriteLine("Socket open..."); //if we made it this far without any networking errors, it’s a good start!
-
-           
+            Console.WriteLine("Socket open...");
         }
 
         //this runs in a thread and sends the data to the player
         static private void SendData()
         {
-
-            //this variable will be used to send the data to the player
-            byte[] data = new byte[1024];
-
             //infinite loop to always send data to the players
             while (true)
             {
-                //loop through every connection (in this case we loop through 30 positions)
+                //loop through every connection
                 foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
                 {
+                    //if theres a value
                     if (kvp1.Value != null)
                     {
+                        //if the player is banned we skip him, so that he stops receiving messages from the server
                         if (kvp1.Value.banned)
                             continue;
 
+                        //this loops through every connection, so that we can send every player info to every client
                         foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp2 in gameState.ToList())
                         {
+                            //if the value is not null
                             if (kvp2.Value != null)
                             {
+                                //we convert the player info class into byte data
                                 byte[] dataToSend = ConvertPlayerInfoClassToByte(kvp2.Value);
+                                //we send the data to the client
                                 newsock.SendTo(dataToSend, dataToSend.Length, SocketFlags.None, kvp1.Key);
                             }
                         }
                     }
                 }
+                //we add a thread sleep to not flud the clients with requests
                 Thread.Sleep(50);
             }
         }
@@ -95,17 +100,16 @@ namespace Server
             byte[] data = new byte[1024]; 
             
             int recv;
-            
-            //this variable will store the current player index we are receiving the data from
-            int pos = 0;
 
             //this is the infinite loop to be able to always receive the data
             while (true)
             {
+                //this will get the remote connection from the client
                 EndPoint newRemote = new IPEndPoint(IPAddress.Any, 0);
                 //we make sure the variable data is the same size
                 data = new byte[1024];
-
+                
+                //we initilialize the recv variable
                 recv = data.Length;
 
                 try
@@ -113,6 +117,7 @@ namespace Server
                     //we receive the message from any player
                     recv = newsock.ReceiveFrom(data, ref newRemote); //recv is now a byte array containing whatever just arrived from the client
                 }
+                //if we couldnt receive the message, we try to remove the player from the server
                 catch(Exception e)
                 {
                     gameState.Remove(newRemote);
@@ -129,8 +134,10 @@ namespace Server
             //this gets the text received
             string text = Encoding.ASCII.GetString(data, 0, recv);
 
+            //if the new connection already exists 
             if (gameState.ContainsKey(newRemote))
             {
+                //if the player that send the message is banned we leave
                 if (gameState[newRemote].banned)
                     return;
             }
@@ -144,24 +151,30 @@ namespace Server
             //is this packet a UID request
             else if (text.Contains("I need a UID for local object:"))
             {
+                //this gives a new uid to the client
                 GiveNewUid(text, newRemote);
             }
             //received a Message that is Object Data
-            else if (text.Contains("Object data;"))//TODO, CHANGE IDENTIFIER
+            else if (text.Contains("Object data;"))
             {
+                //we update the object data
                 UpdateObjectData(text, data, newRemote);
             }
+            //if its an gameplay event
             else if (text.Contains("GameplayEvent:"))
             {
+                //we call the function that handles events
                 ReceivedGameplayEventMensage(data, text, newRemote);
             }
         }
 
-
+        //this will check for key inputs
         static private void KeyCheker()
         {
+            //does an infinite loop
             while (true)
             {
+                //if the user clicks escape, we close the server
                 if (Console.ReadKey().Key == ConsoleKey.Escape)
                 {
                     Environment.Exit(0);
@@ -170,21 +183,25 @@ namespace Server
             }
         }
 
+        //this checks the connections
         static private void CheckConnections()
         {
             int playerNumber = 0;
+            //does an infinite loop to always check how many connections there is
             while (true)
             {
-                //loop through every connection (in this case we loop through 30 positions)
+                //loop through every connection
                 foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
                 {
+                    //if the value is not null we increase the player number
                     if (kvp1.Value != null)
                         playerNumber++;
                 }
-                
+                //we write in the console how many players are connected
                 Console.WriteLine("Players Connected: " + playerNumber);
                 playerNumber = 0;
 
+                //we make the thread sleep for 5 seconds
                 Thread.Sleep(5000);
             }
 
@@ -203,12 +220,10 @@ namespace Server
             //we send the information to the client, so that the client knows that he just connected
             newsock.SendTo(_data, _data.Length, SocketFlags.None, _newRemote);
 
-            sender.Add((IPEndPoint)_newRemote);
-
             lastAssignedGlobalID += 1;
             //assign the ID
             int globalId = lastAssignedGlobalID;
-            //TODO CHECK IF CONNECTION ALREADY EXISTS
+            //we add the new connection to the gamestate list
             gameState.Add(_newRemote, new PlayerInfoClass 
             { 
                 uniqueNetworkID = lastAssignedGlobalID,
@@ -221,16 +236,17 @@ namespace Server
         //this gives a new UID (unique id identifier)
         private static void GiveNewUid(string _text, EndPoint _newRemote)
         {
-            //loop through every connection (in this case we loop through 30 positions)
+            //loop through every connection
             foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
             {
+                //if current gamestate has the same key has the new remote
                 if (kvp1.Key.ToString() == _newRemote.ToString())
                 {
-                    //parse the string into an into to get the local ID
+                    //parse the string into an int to get the local ID
                     int localObjectNumber = Int32.Parse(_text.Substring(_text.IndexOf(':') + 1));
-                    //assign the ID
+                    //this creates a message telling the client their global id
                     string returnVal = ("Assigned UID:" + localObjectNumber + ";" + lastAssignedGlobalID++);
-                    Console.WriteLine(returnVal);
+                    //we send the new uid to the clients
                     newsock.SendTo(Encoding.ASCII.GetBytes(returnVal), Encoding.ASCII.GetBytes(returnVal).Length, SocketFlags.None, _newRemote);
                 }
             }
@@ -239,13 +255,7 @@ namespace Server
         
         //this receives a update of an object, and stores it on the gamestate correct id
         private static void UpdateObjectData(string _text, byte[] _data, EndPoint newRemote_)
-        {
-            //get the global id from the packet
-            //Console.WriteLine(_text);
-
-            string globalId = _text.Split(";")[1];
-            int intId = Int32.Parse(globalId);
-            
+        {            
             //if true, we're already tracking the object
             if (gameState.ContainsKey(newRemote_))
             {
@@ -263,29 +273,41 @@ namespace Server
         //this receives a byte information, and converts it into player data
         private static PlayerInfoClass ConvertByteToPlayerInfoClass(EndPoint _newRemote, byte[] _byte_infoOfPlayer)
         {
+            //we convert the bytes to string
             string _string_InfoOfPlayer = Encoding.ASCII.GetString(_byte_infoOfPlayer);
 
+            //we split every value by ; which is how we split the info in this project
             string[] values = _string_InfoOfPlayer.Split(';');
 
+            //we get the unique id
             int _uniqueNetworkID = Int32.Parse(values[1]);
 
+            //we change the cultural info, since in my pc it was causing problems since its a portuguese pc
             CultureInfo ci = (CultureInfo)CultureInfo.CurrentCulture.Clone();
             ci.NumberFormat.CurrencyDecimalSeparator = ".";
 
+            //we get the positions
             float posX = float.Parse(values[2], NumberStyles.Any, ci);
             float posZ = float.Parse(values[3], NumberStyles.Any, ci);
             float posY = float.Parse(values[4], NumberStyles.Any, ci);
 
+            //we get the rotations
             float rotX = float.Parse(values[5], NumberStyles.Any, ci);
             float rotZ = float.Parse(values[6], NumberStyles.Any, ci);
             float rotY = float.Parse(values[7], NumberStyles.Any, ci);
             float rotW = float.Parse(values[8], NumberStyles.Any, ci);
 
+            //we create a new player in fo received class
             PlayerInfoClass playerInfoReceived = new PlayerInfoClass();
+            //we store the returned info from the server into the new player info class, in this line we store the position
             playerInfoReceived.position = new Vector3(posX / -100, posY / 100, posZ / 100);
+            //in this line we store the rotation received
             playerInfoReceived.rotation = new Quaternion(rotX, rotY, rotZ, rotW);
+            //in this line we store the unique id received
             playerInfoReceived.uniqueNetworkID = _uniqueNetworkID;
+            //in this line we store the hp received
             playerInfoReceived.hp = gameState[_newRemote].hp;
+            //in this line we store the player info received
             return playerInfoReceived;
         }
 
@@ -304,6 +326,7 @@ namespace Server
                                 _infoOfPlayer.hp;
                                 ;
 
+            //this converts the string to bytes
             return Encoding.ASCII.GetBytes(returnVal);
         }
 
@@ -314,8 +337,10 @@ namespace Server
         //this is called when we receive an gameplay event message
         private static void ReceivedGameplayEventMensage(byte[] data_, string text_, EndPoint newRemote_)
         {
+            //if the event was a player shot another player
             if (text_.Contains("Player shot another player:"))
             {
+                //we call the function that handles the shooting
                 ReceivedPlayerShotAnotherPlayerEvent(text_, newRemote_);
             }
         }
@@ -323,9 +348,10 @@ namespace Server
         //this is called when we receive an shot another player event
         private static void ReceivedPlayerShotAnotherPlayerEvent(string text_, EndPoint newRemote_)
         {
+            //we dividde the received message
             string[] values = text_.Split(';');
 
-            //this sotres the id of the shooting player
+            //this stores the id of the shooting player
             int _uniqueNetworkIdOfShootingPlayer = Int32.Parse(values[1]);
             //stores the id of the player that is receiving the damage
             int _uniqueNetworkIdOfPlayerThatTookDamage = Int32.Parse(values[3]);
@@ -338,14 +364,17 @@ namespace Server
             //if the weapon we got is invalid, we disconnect the player, since hes using an invalid weapon
             if (weaponClassOfShootingPlayer == null)
             {
+                //this is called if the player is using a not valide weapon, it will
                 DisconnectPlayer("Shooting Player weapon is a not valide weapon", _uniqueNetworkIdOfShootingPlayer);
                 return;
             }
 
+            //this does the shooting calculations, and checks if the shot was valid, if it was not we kick the player from the session, since he either is cheating or hes internet is so slow that made one packet of diference be a giant diference
             if (CheckIfShootingAnotherPlayerIsNotValid(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer))
-                DisconnectPlayer("Ban: player is shooting in an invalid way", _uniqueNetworkIdOfShootingPlayer);
+                DisconnectPlayer("Ban: player is shooting in an invalid way", _uniqueNetworkIdOfShootingPlayer); //this disconnects the player
+            //if the shooting was valid
             else
-                GiveDamageToPlayer(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer);
+                GiveDamageToPlayer(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer);//we give damage to the player
         }
 
         //this gives damage to the player
@@ -354,6 +383,7 @@ namespace Server
             //we loop through all players
             foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
             {
+                //if the current gamestate is the player that took the damage, decrease the hp (since all hp is calculated on the server)
                 if (kvp1.Value.uniqueNetworkID == _idOfPlayerThatTookDamage)
                     gameState[kvp1.Key].hp -= _weaponThatShot.damage;
             }
@@ -366,11 +396,15 @@ namespace Server
         //this checks if the shooting from one player to another is valid
         private static bool CheckIfShootingAnotherPlayerIsNotValid(int _idOfShootingPlayer, int _idOfPlayerThatTookDamage, WeaponParentClass _weaponThatShot)
         {
+            //this is the angle tolerance, we need the angle tolerance since the player has a width and heidth and the angle is calculated on the player origin, we give it a big tolerance so that we dont kick anyone in an unfair way
             float angleTolerance = 40;
 
+            //this will store the class of the player that shot
             PlayerInfoClass playerThatShot = null;
+            //this will store the class of the player that got shot
             PlayerInfoClass playerThatReceivedTheShot = null;
 
+            //we loop through all players and store who shot and who got shot
             foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
             {
                 if (kvp1.Value.uniqueNetworkID == _idOfShootingPlayer)
@@ -380,12 +414,15 @@ namespace Server
                     playerThatReceivedTheShot = gameState[kvp1.Key];
             }
 
+            //if the value is null, we return that the shooting was invalid
             if (playerThatShot == null)
                 return true;
 
+            //if the value is null, we return that the shooting was invalid
             if (playerThatReceivedTheShot == null)
                 return true;
 
+            //this stores the distance from the players
             float dist = Vector3.Distance(playerThatShot.position, playerThatReceivedTheShot.position);
             //if the distance is bigger then the max distance, it means the player is in fact cheating
             if (dist > _weaponThatShot.maxRange + 5f)
@@ -406,20 +443,27 @@ namespace Server
             return angle >= angleTolerance;                 
         }
 
+        //this disconnects the player from the server
         private static void DisconnectPlayer(string disconnectReason, int idOfPlayer)
         {
+            //if the disconnect reason was that the player was shooting in an invalid way, we kick him
             if(disconnectReason.Contains("Ban: player is shooting in an invalid way"))
             {
+                //loop through every player
                 foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
                 {
+                    //if the player is the correct one, we put the bool banned to true
                     if (kvp1.Value.uniqueNetworkID == idOfPlayer)
                         gameState[kvp1.Key].banned = true;
                 }
             }
+            //if the disconnect reason was that he was using an invalid weapon
             else if(disconnectReason.Contains("Shooting Player weapon is a not valide weapon"))
             {
+                //we loop through every player
                 foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
                 {
+                    //if the player is the correct one we put the is banned to true
                     if (kvp1.Value.uniqueNetworkID == idOfPlayer)
                         gameState[kvp1.Key].banned = true;
                 }

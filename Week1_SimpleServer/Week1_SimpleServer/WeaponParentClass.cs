@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Week1_SimpleServer
 {
+    //this class is the parent to all weapons
     internal class WeaponParentClass
     {
         public float damage { get; protected set; }

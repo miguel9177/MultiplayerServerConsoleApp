@@ -6,8 +6,10 @@ using System.Threading.Tasks;
 
 namespace Week1_SimpleServer
 {
+    //this stores the raycast weapon
     internal class RaycastWeapon : WeaponParentClass
     {
+        //constructor with the weapon settings
         public RaycastWeapon()
         {
             damage = 25;
