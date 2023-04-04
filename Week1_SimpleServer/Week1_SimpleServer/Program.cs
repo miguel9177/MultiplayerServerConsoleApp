@@ -59,6 +59,7 @@ namespace Server
         //this runs in a thread and sends the data to the player
         static private void SendData()
         {
+
             //this variable will be used to send the data to the player
             byte[] data = new byte[1024];
 
@@ -68,11 +69,11 @@ namespace Server
                 //loop through every connection (in this case we loop through 30 positions)
                 foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
                 {
-                    if(kvp1.Value != null)
+                    if (kvp1.Value != null)
                     {
                         foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp2 in gameState.ToList())
                         {
-                            if(kvp2.Value != null)
+                            if (kvp2.Value != null)
                             {
                                 byte[] dataToSend = ConvertPlayerInfoClassToByte(kvp2.Value);
                                 newsock.SendTo(dataToSend, dataToSend.Length, SocketFlags.None, kvp1.Key);
@@ -82,7 +83,6 @@ namespace Server
                 }
                 Thread.Sleep(50);
             }
-
         }
 
         //this runs in a thread and receives the player data
@@ -106,7 +106,7 @@ namespace Server
                 recv = newsock.ReceiveFrom(data, ref newRemote); //recv is now a byte array containing whatever just arrived from the client
                 
                 //this will check wich type of message the server received
-                ReceivedMessageFromClientManager(data, recv, newRemote);                
+                ReceivedMessageFromClientManager(data, recv, newRemote);
             }
         }
 
