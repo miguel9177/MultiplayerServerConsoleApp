@@ -14,6 +14,7 @@ public class PlayerInfoClass
     public Quaternion rotation;
     public int uniqueNetworkID;
     public float hp;
+    public bool banned = false;
 
     public PlayerInfoClass()
     {

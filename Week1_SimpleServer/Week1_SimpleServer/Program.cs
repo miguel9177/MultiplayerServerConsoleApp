@@ -71,6 +71,9 @@ namespace Server
                 {
                     if (kvp1.Value != null)
                     {
+                        if (kvp1.Value.banned)
+                            continue;
+
                         foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp2 in gameState.ToList())
                         {
                             if (kvp2.Value != null)
@@ -125,6 +128,12 @@ namespace Server
         {
             //this gets the text received
             string text = Encoding.ASCII.GetString(data, 0, recv);
+
+            if (gameState.ContainsKey(newRemote))
+            {
+                if (gameState[newRemote].banned)
+                    return;
+            }
 
             //if the text received is FirstEntrance, it means this is a new connection
             if (text == "FirstEntrance")
@@ -232,7 +241,7 @@ namespace Server
         private static void UpdateObjectData(string _text, byte[] _data, EndPoint newRemote_)
         {
             //get the global id from the packet
-            Console.WriteLine(_text);
+            //Console.WriteLine(_text);
 
             string globalId = _text.Split(";")[1];
             int intId = Int32.Parse(globalId);
@@ -333,7 +342,7 @@ namespace Server
                 return;
             }
 
-            if (CheckIfShootingAnotherPlayerIsValid(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer))
+            if (CheckIfShootingAnotherPlayerIsNotValid(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer))
                 DisconnectPlayer("Ban: player is shooting in an invalid way", _uniqueNetworkIdOfShootingPlayer);
             else
                 GiveDamageToPlayer(_uniqueNetworkIdOfShootingPlayer, _uniqueNetworkIdOfPlayerThatTookDamage, weaponClassOfShootingPlayer);
@@ -345,10 +354,6 @@ namespace Server
             //we loop through all players
             foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
             {
-                //TO IMPROVE GAMEPLAY TELL THE SHOOTER PLAYER THAT HE HIT AN ENEMY, USING THE IF BELOW
-                //if (kvp1.Value.uniqueNetworkID == _idOfShootingPlayer)
-                    //gameState[kvp1.Key].hp
-
                 if (kvp1.Value.uniqueNetworkID == _idOfPlayerThatTookDamage)
                     gameState[kvp1.Key].hp -= _weaponThatShot.damage;
             }
@@ -359,7 +364,7 @@ namespace Server
         #region Functionality helper functions
 
         //this checks if the shooting from one player to another is valid
-        private static bool CheckIfShootingAnotherPlayerIsValid(int _idOfShootingPlayer, int _idOfPlayerThatTookDamage, WeaponParentClass _weaponThatShot)
+        private static bool CheckIfShootingAnotherPlayerIsNotValid(int _idOfShootingPlayer, int _idOfPlayerThatTookDamage, WeaponParentClass _weaponThatShot)
         {
             float angleTolerance = 40;
 
@@ -376,10 +381,10 @@ namespace Server
             }
 
             if (playerThatShot == null)
-                return false;
+                return true;
 
             if (playerThatReceivedTheShot == null)
-                return false;
+                return true;
 
             float dist = Vector3.Distance(playerThatShot.position, playerThatReceivedTheShot.position);
             //if the distance is bigger then the max distance, it means the player is in fact cheating
@@ -403,7 +408,22 @@ namespace Server
 
         private static void DisconnectPlayer(string disconnectReason, int idOfPlayer)
         {
-
+            if(disconnectReason.Contains("Ban: player is shooting in an invalid way"))
+            {
+                foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
+                {
+                    if (kvp1.Value.uniqueNetworkID == idOfPlayer)
+                        gameState[kvp1.Key].banned = true;
+                }
+            }
+            else if(disconnectReason.Contains("Shooting Player weapon is a not valide weapon"))
+            {
+                foreach (KeyValuePair<EndPoint, PlayerInfoClass> kvp1 in gameState.ToList())
+                {
+                    if (kvp1.Value.uniqueNetworkID == idOfPlayer)
+                        gameState[kvp1.Key].banned = true;
+                }
+            }
         }
 
         #endregion
